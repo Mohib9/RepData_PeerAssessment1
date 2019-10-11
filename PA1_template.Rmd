@@ -8,18 +8,121 @@ output:
 
 ## Loading and preprocessing the data
 
+Firstly, I loaded the data from the working directory by using read.csv and subsequently used str() to get a rough idea of the data.
 
+```{r, echo=TRUE}
+data <- read.csv("F:/DS/Course 5/Week 2/repdata_data_activity/activity.csv", header = TRUE, sep = ",")
 
+str(data)
+```
+
+I found that the 'date' column was factor and had to be changed to date format for subsequent work using ymd().
+
+```{r, echo=TRUE}
+library(lubridate)
+#converting data for usage
+data$date <- ymd(data$date)
+```
 ## What is mean total number of steps taken per day?
 
+After the basic conversion to required format, I removed the NAs as designated in part 1 of the assignment and summed up the steps taken daily.
 
+```{r, echo=TRUE}
+library(dplyr)
+#calculating steps taken daily
+daily_steps <- data %>% filter(!is.na(steps))  %>% group_by(date) %>% summarise(steps = sum(steps)) %>% print
+```
+
+Subsequently, made a histogram of the steps taken daily :
+```{r, echo=TRUE}
+library(ggplot2)
+#histogram of steps taken daily
+ggplot(data=daily_steps, aes(x=steps))  + geom_histogram()+labs(x = "Steps Taken Daily")
+```
+
+and took the mean and median of the data as stated:
+```{r, echo=TRUE}
+#mean of steps
+mean(daily_steps$steps)
+
+#median
+median(daily_steps$steps)
+```
 
 ## What is the average daily activity pattern?
 
+Next was making a time series plot, For it first I calculated the average steps depending by grouping the data by interval.
+```{r, echo=TRUE}
+#average steps by 5 minute interval
+average_steps <- data %>% filter(!is.na(steps)) %>% group_by(interval) %>% summarise(steps = mean(steps)) %>% print
 
+#making a time series by interval
+ggplot(data = average_steps, aes(x = interval, y = steps)) + geom_line()
+
+```
+Subsequently, calculated the maximum steps taken in a single 5 minute interval.
+```{r, echo=TRUE}
+#maximum number of steps in a time interval
+average_steps[which.max(average_steps$steps),]
+```
 
 ## Imputing missing values
 
+The next part of the assignment required me to identfy the NA rows available.
+```{r, echo=TRUE}
+#total number of rows having NAs
+length(grepl("NA", as.character(data$steps), ignore.case = TRUE))
+```
+Further I decided to replace the NAs by the average steps for that interval to compare the result with and without the NAs.
+```{r, echo=TRUE}
+#replacing NAs with the mean of the respective groups accoring to the interval
+data1 <- data %>% group_by(interval)
+data1$steps[is.na(data1$steps)] <- mean(data1$steps, na.rm=TRUE)
+```
+After that, following the earlier check of steps taken daily, again I made a histogram using the same technique.
+```{r, echo=TRUE}
+#calculating steps taken daily
+daily_steps1 <- data1   %>% group_by(date) %>% summarise(steps = sum(steps)) %>% print
+
+ggplot(data=daily_steps1, aes(x=steps))  + geom_histogram()+labs(x = "Steps Taken Daily")
+```
+And also checking to compare the mean and median,
+```{r, echo=TRUE}
+#mean of steps
+mean(daily_steps1$steps)
+
+#median
+median(daily_steps1$steps)
+
+```
+After imputing the NAs with the mean value of the respective interval, I found the data to be not so different. There is a slight variation but negligible according to the graph. The mean and median are also almost the same.
 
 
 ## Are there differences in activity patterns between weekdays and weekends?
+
+In order to get an idea of the step taken on weekdays and weekend, I made another column differentiating the weekends from the weekdays.
+```{r, echo=TRUE}
+#Making a new variable determining days of week
+data2 <- mutate(data1, days = weekdays(as.POSIXct(date), abbreviate = F))
+
+#renaming as weekends and weekdays
+data2$days <- gsub("saturday|sunday", "Weekend", data2$days, ignore.case = TRUE)
+
+
+data2$days <- gsub("monday|tuesday|wednesday|thursday|friday", "Weekday", data2$days, ignore.case = TRUE)
+```
+Calculated the average steps per interval throughout the study:
+```{r, echo=TRUE}
+#Calculating the average steps per interval
+daily_steps2 <- data2   %>% group_by(interval,days) %>% summarise(steps = mean(steps)) %>% print
+```
+And finally making a plot to compare the results,
+```{r, echo=TRUE}
+#making a time series by interval
+ggplot(data = daily_steps2, aes(x = interval, y = steps)) + geom_line() +   facet_wrap(~days, ncol = 1, nrow=2)
+```
+
+
+The comparison shows that the activity though peaks more during the weekdays but the activity during the weekend tends to be more.
+
+
